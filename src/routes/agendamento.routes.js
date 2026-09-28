@@ -6,20 +6,33 @@ const router = express.Router();
 
 router.post('/', async (req, res) => {
 
-    const {servico_id, data_corte, horario, preco_total} = req.body
-    const [dia, mes, ano] = data_corte.split('/')
-    const data_sql = `${ano}-${mes}-${dia}`
+    const { servicos, data_marcada, horario, preco_total, tempoTotal } = req.body
+    const servicos_id = servicos.map((servico) => servico.id)
+    
 
-    if(!servico_id || !data_sql || !horario || !preco_total){
+    if(!servicos || !data_marcada || !horario || !preco_total){
         return res.status(400).json({
             mensagem: 'Dados importantes faltando'
         })
     }
 
-    try {
-        const comandoSQL = 'INSERT INTO agendamentos (servico_id, data_corte, horario, preco_total) VALUES ($1, $2, $3, $4) RETURNING *'
-        const resultado = await pool.query(comandoSQL, [servico_id, data_sql, horario, preco_total])
+     try {
+        const SQLagendamentos = 'INSERT INTO agendamentos (data_marcada, horario, preco_total, tempo_total) VALUES ($1, $2, $3, $4) RETURNING *'
+        const resultado = await pool.query(SQLagendamentos, [data_marcada, horario, preco_total, tempoTotal])
+        const novoAgendamento = resultado.rows[0].id
 
+        for(const servicoID of servicos_id) {
+            const SQLservicos = 'INSERT INTO agendamentos_servicos (agendamento_id, servico_id, data_agendamento) VALUES ($1, $2, $3)' 
+            await pool.query(SQLservicos, [novoAgendamento, servicoID, data_marcada])
+
+        }
+        
+        console.log(servicos_id)
+        console.log(servicos) // definir qual o serviço, sem preço, somente o id e o nome do serviço | USO DE DESESTRUTURAÇÃO
+        console.log(data_marcada) // definir a data no banco de dados | MANDA DIRETO PRO BANCO
+        console.log(horario) // definir o horario do banco de dados MANDA DIRETO PRO BANCO
+        console.log(preco_total) // vai ser usado pra definir um valor do servico no banco de dados | MANDA DIRETO PRO BANCO
+        console.log(tempoTotal) // vai ser usado pra definir o tempo total do serviço completo | MANDA DIRETO PRO BANCO
         return res.status(201).json({
             mensagem: 'Agendamento feito com sucesso',
             dados: resultado.rows[0]
@@ -27,7 +40,7 @@ router.post('/', async (req, res) => {
 
     } catch (error) {
         console.log(error)
-        return es.status(500).json({
+        return res.status(500).json({
             mensagem: 'Erro ao confirmar agendamento'
         })
     }
